@@ -8,12 +8,15 @@ Currently only supports univariate data.
 
 Simple example (See /demos for more)
 
- addpath code
- addpath data
- load datasets
+```
+addpath code
+addpath data
+
+load datasets
  
- x = Dl.x; y = Dl.y;
+x = Dl.x; y = Dl.y;
 
- gp = nsgp(x, y, 'lso', 'grad');
- plotnsgp(gp,true);
+gp = nsgp(x, y, 'lso', 'grad');
 
+plotnsgp(gp,true);
+```
