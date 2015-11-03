@@ -1,34 +1,48 @@
-function [pmean,pstd,lt,st,ot,pmeanderiv,pstdderiv] = nsgpposterior(pars, xt)
-% non-stationary (scalar) gaussian kernel
+function [fmean,fstd,lt,st,ot] = nsgpposterior(gp, xt)
+% Model posteriors over target points 'xt'
+% returns:
+%  - fmean      : f posterior mean
+%  - fstd       : f posterior std
+%  - lt         :   ell posterior mean [lengthscale]
+%  - st         : sigma posterior mean [signal variance]
+%  - ot         : omega posterior mean [noise variance]
+%  - fderivmean : f derivative posterior mean
+%  - fderivstd  : f derivative posterior std
+
+	if ~exist('xt','var')
+		xt = gp.xtr;
+	end
 	
-	% extrapolate latent functions
-	[ell,sigma,omega] = latentchols(pars);
-	ot = gpposterior(pars.xtr, omega, xt, pars.muomega, pars.betaomega, pars.alphaomega, pars.tol);
-	lt = gpposterior(pars.xtr, ell,   xt, pars.muell,   pars.betaell,   pars.alphaell,   pars.tol);
-	st = gpposterior(pars.xtr, sigma, xt, pars.musigma, pars.betasigma, pars.alphasigma, pars.tol);
-	
+	ot = gpposterior(gp.xtr, gp.l_omega, xt, gp.l_muomega, gp.betaomega, gp.alphaomega, gp.tol);
+	lt = gpposterior(gp.xtr, gp.l_ell,   xt, gp.l_muell,   gp.betaell,   gp.alphaell,   gp.tol);
+	st = gpposterior(gp.xtr, gp.l_sigma, xt, gp.l_musigma, gp.betasigma, gp.alphasigma, gp.tol);
+
 	% extrapolate unknown function
-	Ktt = nsgausskernel(pars.xtr, pars.xtr, ell, ell,   sigma, sigma, omega);
-	Kts = nsgausskernel(pars.xtr, xt,       ell, lt,    sigma, st,    log(0));
-	Kss = nsgausskernel(xt,       xt,       lt,  lt,    st,    st,    log(0));
+	Ktt = nsgausskernel(gp.xtr, gp.xtr, gp.l_ell, gp.l_ell,   gp.l_sigma, gp.l_sigma, gp.l_omega);
+	Kts = nsgausskernel(gp.xtr, xt,     gp.l_ell, lt,         gp.l_sigma, st,         log(0));
+	Kss = nsgausskernel(xt,     xt,     lt,       lt,         st,         st,         log(0));
 	Kst = Kts';
 	
 	A = Kst / Ktt;
 	
-	pmean = A*(pars.ytr-mean(pars.ytr));
-	pcov = Kss - A*Kts;
-	pstd = sqrt(diag(pcov));
+	fmean = A*(gp.ytr - gp.muf) + gp.muf;
+	fcov = Kss - A*Kts;
+	fstd = sqrt(diag(fcov));
 	
 	% compute also the derivative GP
-	if nargout > 5
-		Kdst = nsgausskernelderiv(xt,  pars.xtr, lt, ell, st, sigma);
-		Kdss = nsgausskernelderiv2(xt, xt,       lt, lt,  st, st);
-		pmeanderiv = Kdst / Ktt * pars.ytr;
-		pstdderiv = sqrt(diag(Kdss - Kdst / Ktt * Kdst'));
-	end
-	
-	ot = exp(ot);
+%	if nargout > 5
+%		Kdst = nsgausskernelderiv(xt,  gp.xtr, lt, gp.l_ell, st, gp.l_sigma);
+%		Kdss = nsgausskernelderiv2(xt, xt,       lt, lt,  st, st);
+%		fderivmean = Kdst / Ktt * gp.ytr;
+%		fderivstd = sqrt(diag(Kdss - Kdst / Ktt * Kdst'));
+%		
+%		[~,~,fmean,fstd,lt,st,ot,fderivmean,fderivstd] = denormalise(gp, fmean, fstd, exp(lt), exp(st), exp(ot), fderivmean, fderivstd);
+%	end
+
 	lt = exp(lt);
-	st = exp(st);	
+	st = exp(st);
+	ot = exp(ot);
+
+	[~,~,fmean,fstd,lt,st,ot] = denormalise(gp, fmean, fstd, lt, st, ot);
 end
 

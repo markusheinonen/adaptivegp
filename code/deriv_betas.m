@@ -1,19 +1,17 @@
-function [dl,ds,do] = deriv_betas(pars)
+function [dl,ds,do] = deriv_betas(gp)
 % derivative of the betas over MLL
 
-	Kl = gausskernel(pars.xtr,pars.xtr,pars.betaell,   pars.alphaell, pars.tol);
-	Ks = gausskernel(pars.xtr,pars.xtr,pars.betasigma, pars.alphasigma, pars.tol);
-	Ko = gausskernel(pars.xtr,pars.xtr,pars.betaomega, pars.alphaomega, pars.tol);
+	Kl = gausskernel(gp.xtr,gp.xtr,gp.betaell,   gp.alphaell, gp.tol);
+	Ks = gausskernel(gp.xtr,gp.xtr,gp.betasigma, gp.alphasigma, gp.tol);
+	Ko = gausskernel(gp.xtr,gp.xtr,gp.betaomega, gp.alphaomega, gp.tol);
 	
-	[ell,sigma,omega] = latentchols(pars);
+	al = Kl\(gp.l_ell   - gp.l_muell);
+	as = Ks\(gp.l_sigma - gp.l_musigma);
+	ao = Ko\(gp.l_omega - gp.l_muomega);
 
-	al = Kl\(ell   - pars.muell);
-	as = Ks\(sigma - pars.musigma);
-	ao = Ko\(omega - pars.muomega);
-
-	dKl = pars.betaell^(-3)   * pars.D .* Kl;
-	dKs = pars.betasigma^(-3) * pars.D .* Ks;
-	dKo = pars.betaomega^(-3) * pars.D .* Ko;
+	dKl = gp.betaell^(-3)   * gp.D .* Kl;
+	dKs = gp.betasigma^(-3) * gp.D .* Ks;
+	dKo = gp.betaomega^(-3) * gp.D .* Ko;
 	
 	dl = 0.5*sum(diag((al*al' - inv(Kl))*dKl));% + 0.5*pars.betaell^(-1) - 2; % gamma prior
 	ds = 0.5*sum(diag((as*as' - inv(Ks))*dKs));% + 0.5*pars.betasigma^(-1) - 2;

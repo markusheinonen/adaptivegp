@@ -1,9 +1,10 @@
 function nlpd = computenlpd(ypred, yts, var)
 
-	nlpd = 0;
+	nlpd = zeros(length(yts),1);
 	for i=1:length(yts)
-		nlpd = nlpd + logmvnpdf(yts(i), ypred(i), var(i));
+		nlpd(i) = logmvnpdf(yts(i), ypred(i), var(i));
 	end
-	nlpd = - nlpd / length(yts);
+	nlpd = mean(nlpd);
+%	nlpd = - nlpd / length(yts);
 end
 

@@ -1,32 +1,32 @@
-function [ds] = deriv_sigma(pars, scalar)
+function dwl_s = deriv_sigma(gp, scalar)
 % derivative of the sigma latent function wrt MLL
 	
 	if ~exist('scalar','var')
 		scalar = 0;
 	end
 
-	[ell,sigma,omega] = latentchols(pars);
+	n = length(gp.xtr);
 	
-	n = length(pars.xtr);
-	
-	if sum(ismember('ab', pars.nsfuncs))
-		pars.Ks = gausskernel(pars.xtr,pars.xtr,pars.betasigma, pars.alphasigma, pars.tol);
+	if sum(ismember('ab', gp.nsfuncs))
+		gp.Ks = gausskernel(gp.xtr,gp.xtr,gp.betasigma, gp.alphasigma, gp.tol);
 	end
 	
-	Ky = nsgausskernel(pars.xtr, pars.xtr, ell, ell, sigma, sigma, omega);
-	Kf = nsgausskernel(pars.xtr, pars.xtr, ell, ell, sigma, sigma, log(0));
+	Ky = nsgausskernel(gp.xtr, gp.xtr, gp.l_ell, gp.l_ell, gp.l_sigma, gp.l_sigma, gp.l_omega);
+	Kf = nsgausskernel(gp.xtr, gp.xtr, gp.l_ell, gp.l_ell, gp.l_sigma, gp.l_sigma, log(0));
 	
-	a = Ky\pars.ytr;
+	a = Ky\gp.ytr;
 	A = a*a' - inv(Ky);
 
-	ds = 2*diag( A * Kf ) - pars.Ks\(sigma-pars.musigma);
+	dl_s = 2*diag( A * Kf ) - gp.Ks\(gp.l_sigma - gp.l_musigma);
 	
 	if scalar
-		ds = ones(n,1) * sum(ds);
+		dl_s = ones(n,1) * sum(dl_s);
 	end
 	
-	if isfield(pars, 'Ls')
-		ds = pars.Ls'*ds;
+	if ismember('s', gp.nsfuncs)
+		dwl_s = gp.Ls'*dl_s;
+	else
+		dwl_s = gp.Ls\dl_s;
 	end
 end
 

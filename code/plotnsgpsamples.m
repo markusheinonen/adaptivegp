@@ -57,20 +57,27 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 	%% map GP
 	if ~isempty(mapgp)
 		[ftmap,~,ltmap,stmap,otmap] = nsgpposterior(mapgp, xt);
-		ftmap = ftmap * mapgp.yscale + mapgp.ybias;
-		ltmap = ltmap * mapgp.yscale;
-		stmap = stmap * mapgp.yscale;
+%		ftmap = ftmap * mapgp.yscale + mapgp.ybias;
+%		ltmap = ltmap * mapgp.yscale;
+%		stmap = stmap * mapgp.yscale;
 	end
 
 	% scale
-	xt = xt * pars.xscale + pars.xbias;
-	means = means * pars.yscale + pars.ybias;
-	stds = stds * pars.yscale;
-	ots = ots * pars.yscale;
-	sts = sts * pars.yscale;
-	xtr = pars.xtr * pars.xscale + pars.xbias;
-	ytr = pars.ytr * pars.yscale + pars.ybias;
+%	xt = xt * pars.xscale + pars.xbias;
+%	means = means * pars.yscale + pars.ybias;
+%	stds = stds * pars.yscale;
+%	ots = ots * pars.yscale;
+%	sts = sts * pars.yscale;
+%	xtr = pars.xtr * pars.xscale + pars.xbias;
+%	ytr = pars.ytr * pars.yscale + pars.ybias;
 	
+	
+	
+	
+%	[ft,ftstd,lt,st,ot,ftderiv,ftstdderiv] = nsgpposterior(pars,xt);
+	[xtr,ytr] = denormalise(pars);
+%	fill([xt; flip(xt)], [ft+2*ftstd; flip(ft-2*ftstd)], 'black','facealpha', 0.25);
+
 	
 	%% plot function
 	falpha = 0.65;
@@ -101,16 +108,16 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 	plot(xtr, ytr, '.', 'color', 'white', 'MarkerSize', 12);
 
 	if ~isempty(mapgp) && ~isempty(truemodel)
-		legend(l, {'Posterior samples','Data','MAP posterior','True function'});
+		legend(l, {'Posterior samples','Data','MAP posterior','True function'}, 'Location','NorthWest');
 	elseif ~isempty(mapgp)
-		legend(l, {'Posterior samples','Data','MAP posterior'});
+		legend(l, {'Posterior samples','Data','MAP posterior'}, 'Location','NorthWest');
 	elseif ~isempty(truemodel)
-		legend(l, {'Posterior samples','Data','True function'});
+		legend(l, {'Posterior samples','Data','True function'}, 'Location','NorthWest');
 	else
-		legend(l, {'Posterior samples','Data'});
+		legend(l, {'Posterior samples','Data'}, 'Location','NorthWest');
 	end
 	
-	ylim( [quantile(min(means - 2*sqrt(stds.^2 + ots.^2),[],2), 0.05), quantile(max(means + 2*sqrt(stds.^2 + ots.^2),[],2), 0.95)] );
+%	ylim( [quantile(min(means - 2*sqrt(stds.^2 + ots.^2),[],2), 0.05), quantile(max(means + 2*sqrt(stds.^2 + ots.^2),[],2), 0.95)] );
 	ylabel('value');
 	
 	if strcmp(pars.nsfuncs,'')
@@ -127,6 +134,8 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 	alpha_s = 5;
 	alpha_l = 4;
 	alpha_o = 2;
+	
+%	truemodel = [];
 
 	if plotlatent		
 		subplot(squares,1,3); hold on; lid = 1;
@@ -143,11 +152,11 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 		end
 
 		if ~isempty(mapgp) && ~isempty(truemodel)
-			legend(h, {'Samples','MAP lengthscale', 'True lengthscale'});
+			legend(h, {'Samples','MAP lengthscale', 'True lengthscale'}, 'Location','NorthWest');
 		elseif ~isempty(truemodel)
-			legend(h, {'Samples','True lengthscale'});
+			legend(h, {'Samples','True lengthscale'}, 'Location','NorthWest');
 		elseif ~isempty(mapgp)
-			legend(h, {'Samples','MAP lengthscale'});
+			legend(h, {'Samples','MAP lengthscale'}, 'Location','NorthWest');
 		else
 			legend(h, {'Samples'});
 		end
@@ -171,11 +180,11 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 		end
 
 		if ~isempty(mapgp) && ~isempty(truemodel)
-			legend(h, {'Samples','MAP noise variance', 'True noise variance'});
+			legend(h, {'Samples','MAP noise variance', 'True noise variance'}, 'Location','NorthWest');
 		elseif ~isempty(truemodel)
-			legend(h, {'Samples','True noise variance'});
+			legend(h, {'Samples','True noise variance'}, 'Location','NorthWest');
 		elseif ~isempty(mapgp)
-			legend(h, {'Samples','MAP noise variance'});
+			legend(h, {'Samples','MAP noise variance'}, 'Location','NorthWest');
 		else
 			legend(h, {'Samples'});
 		end
@@ -199,11 +208,11 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 		end
 
 		if ~isempty(mapgp) && ~isempty(truemodel)
-			legend(h, {'Samples','MAP signal variance', 'True variance'});
+			legend(h, {'Samples','MAP signal variance', 'True variance'}, 'Location','NorthWest');
 		elseif ~isempty(truemodel)
-			legend(h, {'Samples','True signal variance'});
+			legend(h, {'Samples','True signal variance'}, 'Location','NorthWest');
 		elseif ~isempty(mapgp)
-			legend(h, {'Samples','MAP signal variance'});
+			legend(h, {'Samples','MAP signal variance'}, 'Location','NorthWest');
 		else
 			legend(h, {'Samples'});
 		end
@@ -214,6 +223,8 @@ function [] = plotnsgpsamples(pars, samples, plotlatent, n, mapgp, truemodel)
 		ylim([0 quantile(max(sts'),0.99)]);
 		title('Signal variance posterior');
 	end
+	
+		
 end
 
 

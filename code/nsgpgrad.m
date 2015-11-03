@@ -1,134 +1,172 @@
-function [pars,mll] = nsgpgrad(pars)
-% learn a nonstationary GP by incrementing nonstationarity
-% i.e. start from stationary solution, add nonstationarities, etc.
+function [gp,mll] = nsgpgrad(gp)
+% learn a nonstationary GP 
 	
-	display('Optimizing...');
+	display(sprintf('Optimizing for %d restarts ...', gp.restarts));
 	display('  model   iter stepsize       mll');
-
-
-	if strcmp(pars.nsfuncs,'lso')
-		pars1 = gradient(pars); % full
-		mll1 = nsgpmll(pars1);
 	
-		pars2 = gradient(pars, ''); % stationary
-		pars2 = gradient(pars2);  % full
-		mll2 = nsgpmll(pars2);
+	% perform gradient search using 'gp.restarts' initial conditions
+	% the first initial condition is always fixed to the 'gp.init_ell', etc
+	% remaining are randomised
 	
-		mll3 = -inf;
-		pars3 = [];
-		if pars.nsfuncs
-			pars3 = gradient(pars, ''); % stationary
-			for k=1:2
-				for i=1:length(pars.nsfuncs) % singletons
-					pars3 = gradient(pars3, pars.nsfuncs(i));
-				end
-			end
-			pars3 = gradient(pars3);  % full
-			mll3 = nsgpmll(pars3);
-		end
+	% store models
+	gps = cell(gp.restarts,1);
+	mlls = zeros(gp.restarts,1);
+	
+	gps{1} = gradient(gp);
+	mlls(1) = nsgpmll(gp);
+	
+	for iter=2:gp.restarts
+		% set random initial values
+		gp.init_ell = unifrnd(0.03, 0.3);
+		gp.init_sigma = unifrnd(0.1, 0.5);
+		gp.init_omega = unifrnd(0.01, 0.10);
+		gp.init();  % do choleskies, etc.
 		
-		if mll1 >= max(mll2,mll3)
-			pars = pars1;
-			mll = mll1;
-		end
-		if mll2 >= max(mll1,mll3)
-			pars = pars2;
-			mll = mll2;
-		end
-		if mll3 >= max(mll1,mll2)
-			pars = pars3;
-			mll = mll3;
-		end	
-		return;
-	end
-
-	
-	
-	%% find best standard GP solution from multiple restarts
-	% generate initial values
-	ls = log([0.10 unifrnd(0.02, 0.20, pars.restarts-1,1)']);
-	ss = log([0.5*max(pars.ytr) unifrnd(0.20, 0.80, pars.restarts-1,1)']);
-	os = log([mean(abs(diff(pars.ytr))) unifrnd(0.01, 0.20, pars.restarts-1,1)']);
-	
-	n = pars.n;
-	
-	bestmll = -inf;
-	bestpars = pars;
-	for r=1:pars.restarts
-%		display(sprintf(' [%d/%d] Gradients of stationary parameters', r, pars.restarts));
-
-		pars.muell = ls(r);
-		pars.musigma = ss(r);
-		pars.muomega = os(r);
-		
-		pars.ell = ls(r)*ones(n,1);
-		pars.sigma = ss(r)*ones(n,1);
-		pars.omega = os(r)*ones(n,1);
-		
-		if isfield(pars, 'Ll')
-			pars.ell = pars.Ll\(ls(r)*ones(n,1));
-		end
-		if isfield(pars, 'Ls')
-			pars.sigma = pars.Ls\(ss(r)*ones(n,1));
-		end
-		if isfield(pars, 'Lo')
-			pars.omega = pars.Lo\(os(r)*ones(n,1));
-		end
-		
-		pars = gradient(pars, '');
-		
-		mll = nsgpmll(pars);
-	
-		if mll > bestmll
-			bestmll = mll;
-			bestpars = pars;
-		end
+		gps{iter} = gradient(gp);
+		mlls(iter) = nsgpmll(gp);
 	end
 	
-	pars = bestpars;
-	pars1 = pars;
-	pars2 = pars;
-	
-	%% (1) add nonstationary functions one-by-one
-	for k=1:pars1.maxrounds
-		% optimise functions one-by-one in order (several rounds)
-		for i=1:length(pars1.nsfuncs)
-%			display(sprintf(' [%d/%d] Gradients of non-stationary function "%s"', k, pars1.maxrounds, pars1.nsfuncs(i)));
-			pars1 = gradient(pars1, pars1.nsfuncs(i));
-		end
-		
-		% always do stationary learning at end
-%		display(' Gradients of stationary function');
-		pars1 = gradient(pars1, '');
-	end
-	
-	% full learning at end
-%	display(sprintf(' [1/1] Gradients of non-stationary function "%s"', pars1.nsfuncs));
-	pars1 = gradient(pars1);
-	mll1 = nsgpmll(pars1);
-	
-	%% (2) do all nonstationary functions simultaneously
-	for k=1:pars2.maxrounds
-%		display(sprintf(' [%d/%d] Gradients of non-stationary function "%s"', k, pars2.maxrounds, pars2.nsfuncs));
-		pars2 = gradient(pars2);
-		
-		% always do stationary learning at end
-%		display(' Gradients of stationary function');
-		pars2 = gradient(pars2, '');
-	end
-	mll2 = nsgpmll(pars2);
-	
-	%% choose better
-	if mll1 > mll2
-		pars = pars1;
-		mll = mll1;
-	else
-		pars = pars2;
-		mll = mll2;
-	end
+	[mll,i] = max(mlls);
+	gp = gps{i};
 	
 	display(sprintf('Best model mll=%.2f',mll));
+
 	
+% 	
+% 	gp = gradient(gp);
+% 	mll = nsgpmll(gp);
+% 	return;
+% 
+% 	bestgp = [];
+% 	bestmll = -inf;
+% 
+% 	if strcmp(gp.nsfuncs,'lso')
+% 		
+% 		% directly go to full model
+% 		gp = gradient(gp);
+% 		mll = nsgpmll(gp);
+% 		if mll > bestmll
+% 			bestmll = mll;
+% 			bestgp = gp;
+% 		end
+% 
+% 		% iteratively add more stuff
+% 		ords = perms(gp.nsfuncs);
+% 		for j=1:size(ords,1)
+% 			gp = gradient(gp, ''); % stationary
+% 			for i=1:length(gp.nsfuncs)
+% 				gp = gradient(gp, ords(j,1:i));
+% 			end
+% 			mll = nsgpmll(gp);
+% 			
+% 			if mll > bestmll
+% 				bestmll = mll;
+% 				bestgp = gp;
+% 			end
+% 		end
+% 				
+% 		% go from stationary to full
+% 		gp = gradient(gp, '');
+% 		gp = gradient(gp);
+% 		mll = nsgpmll(gp);
+% 		if mll > bestmll
+% 			bestmll = mll;
+% 			bestgp = gp;
+% 		end
+% 		
+% 		gp = bestgp;
+% 		mll = bestmll;
+% 		
+% 		return;
+% 	end
+% 
+% 	
+% 	
+% 	%% find best standard GP solution from multiple restarts
+% 	% generate initial values
+% 	ls = log([0.10 unifrnd(0.02, 0.20, gp.restarts-1,1)']);
+% 	ss = log([0.5*max(gp.ytr) unifrnd(0.20, 0.80, gp.restarts-1,1)']);
+% 	os = log([mean(abs(diff(gp.ytr))) unifrnd(0.01, 0.20, gp.restarts-1,1)']);
+% 	
+% 	n = gp.n;
+% 	
+% 	bestmll = -inf;
+% 	bestpars = gp;
+% 	for r=1:gp.restarts
+% %		display(sprintf(' [%d/%d] Gradients of stationary parameters', r, pars.restarts));
+% 
+% %		pars.muell = ls(r);
+% %		pars.musigma = ss(r);
+% %		pars.muomega = os(r);
+% 		
+% 		gp.ell = ls(r)*ones(n,1);
+% 		gp.sigma = ss(r)*ones(n,1);
+% 		gp.omega = os(r)*ones(n,1);
+% 		
+% 		if isfield(gp, 'Ll')
+% 			gp.ell = gp.Ll\(ls(r)*ones(n,1));
+% 		end
+% 		if isfield(gp, 'Ls')
+% 			gp.sigma = gp.Ls\(ss(r)*ones(n,1));
+% 		end
+% 		if isfield(gp, 'Lo')
+% 			gp.omega = gp.Lo\(os(r)*ones(n,1));
+% 		end
+% 		
+% 		gp = gradient(gp, '');
+% 		
+% 		mll = nsgpmll(gp);
+% 	
+% 		if mll > bestmll
+% 			bestmll = mll;
+% 			bestpars = gp;
+% 		end
+% 	end
+% 	
+% 	gp = bestpars;
+% 	pars1 = gp;
+% 	pars2 = gp;
+% 	
+% 	%% (1) add nonstationary functions one-by-one
+% 	for k=1:pars1.maxrounds
+% 		% optimise functions one-by-one in order (several rounds)
+% 		for i=1:length(pars1.nsfuncs)
+% %			display(sprintf(' [%d/%d] Gradients of non-stationary function "%s"', k, pars1.maxrounds, pars1.nsfuncs(i)));
+% 			pars1 = gradient(pars1, pars1.nsfuncs(i));
+% 		end
+% 		
+% 		% always do stationary learning at end
+% %		display(' Gradients of stationary function');
+% 		pars1 = gradient(pars1, '');
+% 	end
+% 	
+% 	% full learning at end
+% %	display(sprintf(' [1/1] Gradients of non-stationary function "%s"', pars1.nsfuncs));
+% 	pars1 = gradient(pars1);
+% 	mll1 = nsgpmll(pars1);
+% 	
+% 	%% (2) do all nonstationary functions simultaneously
+% 	for k=1:pars2.maxrounds
+% %		display(sprintf(' [%d/%d] Gradients of non-stationary function "%s"', k, pars2.maxrounds, pars2.nsfuncs));
+% 		pars2 = gradient(pars2);
+% 		
+% 		% always do stationary learning at end
+% %		display(' Gradients of stationary function');
+% 		pars2 = gradient(pars2, '');
+% 	end
+% 	mll2 = nsgpmll(pars2);
+% 	
+% 	%% choose better
+% 	if mll1 > mll2
+% 		gp = pars1;
+% 		mll = mll1;
+% 	else
+% 		gp = pars2;
+% 		mll = mll2;
+% 	end
+% 	
+% 	display(sprintf('Best model mll=%.2f',mll));
+% 	
 end
 
 

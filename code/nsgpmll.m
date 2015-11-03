@@ -1,6 +1,4 @@
-function [val,valy,vall,vals,vale,vall1,vall2] = nsgpmll(pars)
-
-	[ell,sigma,omega] = latentchols(pars);
+function [val,valy,vall,vals,vale] = nsgpmll(pars)
 	
 	n = length(pars.xtr);
 	if sum(ismember('ab', pars.nsfuncs))
@@ -8,8 +6,8 @@ function [val,valy,vall,vals,vale,vall1,vall2] = nsgpmll(pars)
 		pars.Ks = gausskernel(pars.xtr, pars.xtr, pars.betasigma, pars.alphasigma, pars.tol);
 		pars.Ko = gausskernel(pars.xtr, pars.xtr, pars.betaomega, pars.alphaomega, pars.tol);
 	end
-	Ky = nsgausskernel(pars.xtr, pars.xtr, ell, ell, sigma, sigma, omega);
-	zs = zeros(n,1);
+	Ky = nsgausskernel(pars.xtr, pars.xtr, pars.l_ell, pars.l_ell, pars.l_sigma, pars.l_sigma, pars.l_omega);
+	zs = zeros(pars.n,pars.p);
 	
 	% check if non-sdp or low condition number
 	[~,p] = chol(Ky);
@@ -20,24 +18,24 @@ function [val,valy,vall,vals,vale,vall1,vall2] = nsgpmll(pars)
 	end
 	
 	% assuming exp-transformation here
-	valy = logmvnpdf(pars.ytr, zs, Ky);
+	valy = diag(logmvnpdf(pars.ytr, zs, Ky));
 	
 	if length(pars.ell) == 1
-		vall = logmvnpdf(pars.ell*ones(n,1), pars.muell, pars.Kl);
+		vall = logmvnpdf(pars.ell*ones(n,1), muell, pars.Kl);
 	else
-		[vall,vall1,vall2] = logmvnpdf(ell, pars.muell, pars.Kl);
+		vall = logmvnpdf(pars.l_ell, pars.l_muell, pars.Kl);
 	end
 	
 	if length(pars.sigma) == 1
-		vals = logmvnpdf(pars.sigma*ones(n,1), pars.musigma, pars.Ks);
+		vals = logmvnpdf(pars.sigma*ones(n,1), musigma, pars.Ks);
 	else
-		vals = logmvnpdf(sigma, pars.musigma, pars.Ks);
+		vals = logmvnpdf(pars.l_sigma, pars.l_musigma, pars.Ks);
 	end
 	
 	if length(pars.omega) == 1
-		vale = logmvnpdf(pars.omega*ones(n,1), pars.muomega, pars.Ko);
+		vale = logmvnpdf(pars.omega*ones(n,1), muomega, pars.Ko);
 	else
-		vale = logmvnpdf(omega, pars.muomega, pars.Ko);
+		vale = logmvnpdf(pars.l_omega, pars.l_muomega, pars.Ko);
 	end
 	
 	val = valy + vall + vals + vale;

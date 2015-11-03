@@ -1,18 +1,16 @@
-function [dl, ds, do] = deriv_mus(pars)
+function [dl, ds, do] = deriv_mus(gp)
 % derivative of the mean parameters against MLL
 
 	% update if necessary
-	if sum(ismember('ab', pars.nsfuncs))
-		pars.Kl = gausskernel(pars.xtr,pars.xtr,pars.betaell,   pars.alphaell,   pars.tol);
-		pars.Ks = gausskernel(pars.xtr,pars.xtr,pars.betasigma, pars.alphasigma, pars.tol);
-		pars.Ko = gausskernel(pars.xtr,pars.xtr,pars.betaomega, pars.alphaomega, pars.tol);
+	if sum(ismember('ab', gp.nsfuncs))
+		gp.Kl = gausskernel(gp.xtr,gp.xtr,gp.betaell,   gp.alphaell,   gp.tol);
+		gp.Ks = gausskernel(gp.xtr,gp.xtr,gp.betasigma, gp.alphasigma, gp.tol);
+		gp.Ko = gausskernel(gp.xtr,gp.xtr,gp.betaomega, gp.alphaomega, gp.tol);
 	end
-	
-	[ell,sigma,omega] = latentchols(pars);
-	
-	dl = sum(pars.Kl\(ell - pars.muell));
-	ds = sum(pars.Ks\(sigma - pars.musigma));
-	do = sum(pars.Ko\(omega - pars.muomega));	
+		
+	dl = sum(gp.Kl\(gp.l_ell - gp.l_muell));
+	ds = sum(gp.Ks\(gp.l_sigma - gp.l_musigma));
+	do = sum(gp.Ko\(gp.l_omega - gp.l_muomega));	
 end
 
 

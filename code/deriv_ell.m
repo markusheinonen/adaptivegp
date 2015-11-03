@@ -1,37 +1,34 @@
-function dl = deriv_ell(pars, scalar)
+function dwl_l = deriv_ell(pars, scalar)
 % derivative of the ell latent function wrt MLL
 
 	if ~exist('scalar','var')
 		scalar = 0;
 	end
-	
-	[ell,sigma,omega] = latentchols(pars);
-	
+		
 	if sum(ismember('ab', pars.nsfuncs))
 		pars.Kl = gausskernel(pars.xtr, pars.xtr, pars.betaell, pars.alphaell, pars.tol);
 	end
 	
 	n = length(pars.xtr);
-	Ky = nsgausskernel(pars.xtr,pars.xtr,ell, ell, sigma, sigma, omega);
+	Ky = nsgausskernel(pars.xtr,pars.xtr,pars.l_ell, pars.l_ell, pars.l_sigma, pars.l_sigma, pars.l_omega);
 	a = Ky\pars.ytr;
 	A = a*a' - inv(Ky);
-		
+	
 	% correct in the log-transform?
 	if length(pars.ell) == 1 || scalar
-		Kf = nsgausskernel(pars.xtr, pars.xtr, ell, ell, sigma, sigma, log(0));
-		dKl = exp(mean(ell))^(-2) * (pars.D .* Kf);
+		Kf = nsgausskernel(pars.xtr, pars.xtr, pars.l_ell, pars.l_ell, pars.l_sigma, pars.l_sigma, log(0));
+		dKl = exp(mean(pars.l_ell))^(-2) * (pars.D .* Kf);
 
-		dl = 0.5*(diag( A*dKl )) - (pars.Kl\(ell - pars.muell));
+		dl_l = 0.5*(diag( A*dKl )) - (pars.Kl\(pars.l_ell - pars.l_muell));
 		
-		dl = ones(n,1)*sum(dl);
+		dl_l = ones(n,1)*sum(dl_l);
 		
 		if isfield(pars, 'Ll')
-			dl = pars.Ll\dl;
+			dl_l = pars.Ll\dl_l;
 		end
-		
 	else
-		ell = exp(ell);
-		sigma = exp(sigma);
+		ell = pars.ell;
+		sigma = pars.sigma;
 
 		% compute dK matrix first, then cross-slice from it
 		L = repmat(ell.^2,1,n) + repmat(ell.^2,1,n)';
@@ -53,7 +50,7 @@ function dl = deriv_ell(pars, scalar)
 %			end
 %		end
 		
-		dl = zeros(n,1);
+		dl_l = zeros(n,1);
 		for i=1:n
 %			ei = zeros(n,1);
 %			ei(i) = 1;
@@ -66,17 +63,22 @@ function dl = deriv_ell(pars, scalar)
 			% ii) make Mi.*dK sparse
 %			dl(i) = 0.5*sum( sum(A .* sparse(Mi .* dK)',2) );
 			% iii) construct sparse matrix directly from the col/row
-			dl(i) = 0.5*sum( sum(A .* sparse([1:n i*ones(1,n)], [i*ones(1,n) 1:n], [dK(:,i) dK(i,:)'])',2));
+			dl_l(i) = 0.5*sum( sum(A .* sparse([1:n i*ones(1,n)], [i*ones(1,n) 1:n], [dK(:,i) dK(i,:)'])',2));
 		end
 		
 		
-		dl = dl - pars.Kl\(log(ell)-pars.muell);
+		dl_l = dl_l - pars.Kl\(pars.l_ell - pars.l_muell);
 %		dl = dl - Kl\(log(ell)-mean(log(ell)));
 		
 		% transform
-		if isfield(pars, 'Ll')
-			dl = pars.Ll'*dl;
-		end
+%		if isfield(pars, 'Ll')
+%			dl = pars.Ll'*dl;
+%		end
+	end
+	if ismember('l', pars.nsfuncs)
+		dwl_l = pars.Ls'*dl_l;
+	else
+		dwl_l = pars.Ls\dl_l;
 	end
 end
 

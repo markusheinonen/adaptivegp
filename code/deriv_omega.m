@@ -1,4 +1,4 @@
-function [do] = deriv_omega(pars, scalar)
+function dwl_o = deriv_omega(pars, scalar)
 % derivative of the noise latent function over the MLL
 %
 
@@ -7,26 +7,27 @@ function [do] = deriv_omega(pars, scalar)
 	end
 	
 	n = length(pars.xtr);
-	
-	[ell,sigma,omega] = latentchols(pars);	
-	
+		
 	if sum(ismember('ab', pars.nsfuncs))
 		pars.Ko = gausskernel(pars.xtr,pars.xtr,pars.betaomega, pars.alphaomega, pars.tol);
 	end
 		
-	Ky = nsgausskernel(pars.xtr,pars.xtr,ell, ell, sigma, sigma, omega);
+	Ky = nsgausskernel(pars.xtr,pars.xtr,pars.l_ell, pars.l_ell, pars.l_sigma, pars.l_sigma, pars.l_omega);
 	a = Ky\pars.ytr;
 	A = a*a' - inv(Ky);
 
-	dK = diag( 2.*exp(2*omega) );
-	do = 0.5*diag(A*dK) - pars.Ko\(omega - pars.muomega);
+	dK = diag( 2.*exp(2*pars.l_omega) );
+	dl_o = 0.5*diag(A*dK) - pars.Ko\(pars.l_omega - pars.l_muomega);
 
 	if scalar
-		do = ones(n,1) * sum(do);
+		dl_o = ones(n,1) * sum(dl_o);
 	end
 	
-	if isfield(pars, 'Lo')
-		do = pars.Lo'*do;
+%	if isfield(pars, 'Lo')
+	if ismember('o', pars.nsfuncs)
+		dwl_o = pars.Lo'*dl_o;
+	else
+		dwl_o = pars.Lo\dl_o;
 	end
 end
 

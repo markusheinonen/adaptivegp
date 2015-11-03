@@ -1,21 +1,21 @@
-function [gpmodel,samples,mll,mse,nmse,nlpd] = nsgp(x,y,nsfuncs,optim, gpmodel)
-% main function for nonstationary GP modeling
+function [gp,samples,mll,mse,nmse,nlpd] = nsgp(x,y,nsfuncs,optim,varargin)
+% Main function to learn the adaptive GP
 % 
 % INPUTS
-% nsfuncs : string of nonstationary components, 'lsemab', options:
-%           l : lengthscale
-%           s : signal variance
-%           o : noise std
-%           m : prior means
-%           a : prior variances
-%           b : prior lenghtscales
-% optim   : either 'hmc' or 'grad'
+%  - x       : input data vector
+%  - y       : output data vector
+%  - nsfuncs : string of components set as nonstationary [default 'lso']
+%      l : lengthscale
+%      s : signal variance
+%      o : noise variance
+%  - optim : either 'grad' [default] or 'hmc'
+%  - varargin : define parameters
+%               give params-struct or define pairs of values
 %
 % OUTPUTS
-% pars    : parameter values learned [grad] or initialised [hmc]
-% samples : hmc samples of the posterior? [hmc] or empty [grad]
+%  - params  : parameter values learned [grad] or initialised [hmc]
+%  - samples : hmc samples of the posterior? [hmc] or empty [grad]
 %
-
 
 	if ~exist('nsfuncs','var')
 		nsfuncs = 'lso';
@@ -24,78 +24,44 @@ function [gpmodel,samples,mll,mse,nmse,nlpd] = nsgp(x,y,nsfuncs,optim, gpmodel)
 		optim = 'grad';
 	end
 	
-	% filter NaN's
-	nonnuls = ~isnan(y) & prod(~isnan(x),2);
-	x = x(nonnuls,:);
-	y = y(nonnuls);
-
-	if ~exist('pars','var')
-		gpmodel = defaultpars(x);
+	% no params given
+	if isempty(varargin)
+		gp = gpmodel(x,y);
 	end
 	
-	% normalize
-	n = length(y);
-	gpmodel.xbias = min(x);
-	gpmodel.xscale = max(x)-min(x);
-	gpmodel.yscale = max(abs(y-mean(y)));
-	gpmodel.ybias = mean(y);
-	gpmodel.xtr = (x - repmat(gpmodel.xbias,n,1)) ./ repmat(gpmodel.xscale,n,1);
-	gpmodel.ytr = (y - gpmodel.ybias) / gpmodel.yscale;
-
-%	pars.xtr = x;
-%	pars.ytr = y;
-	gpmodel.xts = gpmodel.xtr;
-	gpmodel.yts = gpmodel.ytr;
-		
-	gpmodel.nsfuncs = nsfuncs;
-	gpmodel.optim = optim;
-	gpmodel.n = length(gpmodel.xtr);
-	
-	if length(gpmodel.ell) == 1
-		gpmodel.ell = gpmodel.ell * ones(gpmodel.n,1);
-	end
-	if length(gpmodel.sigma) == 1
-		gpmodel.sigma = gpmodel.sigma * ones(gpmodel.n,1);
-	end
-	if length(gpmodel.omega) == 1
-		gpmodel.omega = gpmodel.omega * ones(gpmodel.n,1);
+	% single param or odd number given: assume first param is a struct
+	if mod(length(varargin),2)==1
+		gp = varargin{1};
+		varargin = varargin(2:end);
 	end
 	
-	% precompute these when we are not optimising alphas/betas
-	gpmodel.Kl = gausskernel(gpmodel.xtr, gpmodel.xtr, gpmodel.betaell,   gpmodel.alphaell,   gpmodel.tol);
-	gpmodel.Ks = gausskernel(gpmodel.xtr, gpmodel.xtr, gpmodel.betasigma, gpmodel.alphasigma, gpmodel.tol);
-	gpmodel.Ko = gausskernel(gpmodel.xtr, gpmodel.xtr, gpmodel.betaomega, gpmodel.alphaomega, gpmodel.tol);
-	gpmodel.D = pdist2(gpmodel.xtr,gpmodel.xtr).^2;	
-	
-	if gpmodel.white
-		% transform ell's into cholesky domain
-		if ismember('l', nsfuncs)
-			gpmodel.Ll = chol(gpmodel.Kl)';
-			gpmodel.ell = gpmodel.Ll \ gpmodel.ell;
-		end
-		if ismember('s', nsfuncs)
-			gpmodel.Ls = chol(gpmodel.Ks)';
-			gpmodel.sigma = gpmodel.Ls \ gpmodel.sigma;
-		end
-		if ismember('o', nsfuncs)
-			gpmodel.Lo = chol(gpmodel.Ko)';
-			gpmodel.omega = gpmodel.Lo \ gpmodel.omega;
-		end
+	% set all remaining arguments
+	for i=1:length(varargin)/2
+		gp.(varargin{i*2-1}) = varargin{i*2};
 	end
 	
+	gp.nsfuncs = nsfuncs;
+	gp.optim = optim;
+	gp.init();
 	
 	samples = [];
 	switch optim
 		% HMC sampling, do 1 chain (call this function repeatedly for more chains)
 		case 'hmc'
-			[samples,mll] = nsgpnuts(gpmodel);
+			[samples,mll] = nsgpnuts(gp);
 		
 		% gradient descent (several restarts included)
 		case 'grad'
-			[gpmodel,mll] = nsgpgrad(gpmodel);
+			[gp,mll] = nsgpgrad(gp);
 	end
 	
-	[mse,nmse,nlpd] = testerrors(gpmodel, samples);
+%	mse = nan;
+%	nmse = nan;
+%	nlpd = nan;
+%	if cv < 1
+%		[mse,nmse,nlpd] = testerrors(gp, samples);
+%		display(sprintf('mse=%.4f nmse=%.4f mlpd=%.4f', mse, nmse, nlpd));
+%	end
 end
 
 

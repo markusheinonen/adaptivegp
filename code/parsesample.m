@@ -5,24 +5,24 @@ function pars = parsesample(theta, pars)
 	n = length(pars.ell);
 	j = 0;
 	if ismember('l', pars.nsfuncs)
-		pars.ell   = theta(j+1:j+n)'; 
+		pars.wl_ell   = theta(j+1:j+n)'; 
 		j=j+n;
 	else
-		pars.ell   = theta(j+1) * ones(n,1); 
+		pars.wl_ell   = theta(j+1) * ones(n,1); 
 		j=j+1;
 	end
 	if ismember('s', pars.nsfuncs)
-		pars.sigma = theta(j+1:j+n)';
+		pars.wl_sigma = theta(j+1:j+n)';
 		j=j+n;
 	else
-		pars.sigma = theta(j+1) * ones(n,1); 
+		pars.wl_sigma = theta(j+1) * ones(n,1); 
 		j=j+1;
 	end
 	if ismember('o', pars.nsfuncs)
-		pars.omega = theta(j+1:j+n)';
+		pars.wl_omega = theta(j+1:j+n)';
 		j=j+n;
 	else
-		pars.omega = theta(j+1) * ones(n,1); 
+		pars.wl_omega = theta(j+1) * ones(n,1); 
 		j=j+1;
 	end
 	if ismember('m', pars.nsfuncs)

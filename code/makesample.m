@@ -1,25 +1,27 @@
-function theta = makesample(pars)
+function theta = makesample(gp)
 
 	theta = [];
-	if ismember('l', pars.nsfuncs); 
-		theta = [theta pars.ell'];
+	if ismember('l', gp.nsfuncs); 
+		theta = [theta gp.wl_ell'];
 	else
-		theta = [theta pars.ell(1)];
+		theta = [theta gp.wl_ell(1)];
 	end
-	if ismember('s', pars.nsfuncs); 
-		theta = [theta pars.sigma'];
+	if ismember('s', gp.nsfuncs); 
+		theta = [theta gp.wl_sigma'];
 	else
-		theta = [theta pars.sigma(1)];
+		theta = [theta gp.wl_sigma(1)];
 	end
-	if ismember('o', pars.nsfuncs); 
-		theta = [theta pars.omega'];
+	if ismember('o', gp.nsfuncs); 
+		theta = [theta gp.wl_omega'];
 	else
-		theta = [theta pars.omega(1)];
-%		theta = [theta pars.omega'];
+		theta = [theta gp.wl_omega(1)];
 	end
-	if ismember('m', pars.nsfuncs); theta = [theta pars.muell pars.musigma pars.muomega]; end
-	if ismember('a', pars.nsfuncs); theta = [theta pars.alphaell pars.alphasigma pars.alphaomega]; end
-	if ismember('b', pars.nsfuncs); theta = [theta pars.betaell pars.betasigma pars.betaomega]; end
+	
+	if ismember('m', gp.nsfuncs); 
+		theta = [theta gp.l_muell gp.l_musigma gp.l_muomega]; 
+	end
+	if ismember('a', gp.nsfuncs); theta = [theta gp.alphaell gp.alphasigma gp.alphaomega]; end
+	if ismember('b', gp.nsfuncs); theta = [theta gp.betaell gp.betasigma gp.betaomega]; end
 
 end
 
